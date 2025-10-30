@@ -1,0 +1,7 @@
+python-telegram-bot==20.7
+httpx
+py-clob-client
+SQLAlchemy[asyncio]
+aiosqlite
+cryptography
+python-dotenv
