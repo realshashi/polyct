@@ -2,7 +2,7 @@ import asyncio
 from security import decrypt_data
 from database import AsyncSessionLocal, UserKeys, TradeLog
 from sqlalchemy.future import select
-from py_clob_client import CLOBClient  # be sure py-clob-client is available and correct here
+from py_clob_client.client import ClobClient
 import logging
 
 async def trade_execution_worker(job_queue, bot=None):
@@ -21,7 +21,7 @@ async def trade_execution_worker(job_queue, bot=None):
                 api_secret = decrypt_data(res.api_secret)
                 api_pass = decrypt_data(res.api_passphrase)
             # Initialize py-clob-client
-            client = CLOBClient(
+            client = ClobClient(
                 api_key=api_key,
                 api_secret=api_secret,
                 passphrase=api_pass

@@ -1,5 +1,6 @@
 import os
 import asyncio
+import sys
 from dotenv import load_dotenv
 from database import init_db
 from bot import HANDLERS
@@ -24,7 +25,14 @@ async def main():
         asyncio.create_task(trade_execution_worker(job_queue, bot=application.bot))
 
     print("Polymarket Copy Trading Bot started.")
-    await application.run_polling()
+    await application.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n✅ Bot stopped by user.")
+    except Exception as e:
+        print(f"❌ Bot error: {e}")
+        import traceback
+        traceback.print_exc()
