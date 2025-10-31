@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # PostgreSQL service (optional, comment out if using SQLite)
   db:
     image: postgres:15-alpine
     environment:
@@ -15,16 +16,23 @@ services:
       timeout: 5s
       retries: 5
 
+  # Bot service
   bot:
     build: .
+    # Comment out depends_on if using SQLite
     depends_on:
       db:
         condition: service_healthy
     environment:
+      # Use this for PostgreSQL
       - DATABASE_URL=postgresql+asyncpg://polyuser:localdev@db:5432/polymarket
+      # Or use this for SQLite (uncomment and comment out PostgreSQL URL above)
+      #- DATABASE_URL=sqlite+aiosqlite:///data/polymarketbot.db
       - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
       - DUNE_API_KEY=${DUNE_API_KEY}
       - PORT=8000
+    volumes:
+      - sqlite_data:/app/data  # Persist SQLite database
     ports:
       - "8000:8000"
     healthcheck:
@@ -35,4 +43,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
+  postgres_data:  # For PostgreSQL
+  sqlite_data:    # For SQLite persistence

@@ -17,19 +17,23 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt \
     && pip install --no-cache-dir psycopg2-binary asyncpg
 
+# Create data directory for SQLite with proper permissions
+RUN mkdir -p /app/data && chown -R 1000:1000 /app/data
+
 # Copy application code
 COPY . .
 
 # Run as non-root
-RUN useradd -m appuser || true
+RUN useradd -m appuser || true && \
+    chown -R appuser:appuser /app
 USER appuser
 
 # Environment setup
 ENV PYTHONUNBUFFERED=1
 ENV PATH="/home/appuser/.local/bin:$PATH"
 
-# Default to SQLite but allow override via environment
-ENV DATABASE_URL="sqlite+aiosqlite:///polymarketbot.db"
+# Default to SQLite in data directory with proper permissions
+ENV DATABASE_URL="sqlite+aiosqlite:///data/polymarketbot.db"
 
 # Health check port
 EXPOSE 8000
