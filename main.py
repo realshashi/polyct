@@ -35,6 +35,13 @@ async def main() -> None:
     application.create_task(poll_trades(job_queue))
     for _ in range(2):
         application.create_task(trade_execution_worker(job_queue, bot=application.bot))
+    # Health check HTTP server (useful for containers/load-balancers)
+    try:
+        # avoid importing aiohttp unless available
+        from server import run_health_server
+        application.create_task(run_health_server())
+    except Exception:
+        pass
 
     print("Polymarket Copy Trading Bot started.")
 

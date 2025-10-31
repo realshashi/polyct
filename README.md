@@ -1,3 +1,41 @@
+# Polymarket Copy Trading Bot
+
+This repository runs a Telegram bot which watches Polymarket activity and copies trades for subscribers.
+
+Deployment checklist
+- Use Python 3.12 (recommended).
+- Provide secrets via environment variables (do not commit `.env`): `TELEGRAM_TOKEN`, `DUNE_API_KEY`, `DATABASE_URL`, and optional `PORT`.
+- Prefer a managed PostgreSQL for production; set `DATABASE_URL` accordingly.
+- Rotate the Telegram token if it was ever committed to the repo.
+
+Quick local run (development)
+
+```bash
+python3.12 -m venv .venv-3.12
+source .venv-3.12/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+# fill values in .env
+python main.py
+```
+
+Docker
+
+Build and run container:
+
+```bash
+docker build -t polyct .
+docker run -e TELEGRAM_TOKEN="$TELEGRAM_TOKEN" -e DUNE_API_KEY="$DUNE_API_KEY" -p 8000:8000 polyct
+```
+
+Health check
+
+The container exposes `/health` on port 8000 which returns 200 when running.
+
+Security
+
+- Ensure `.env` is in `.gitignore` (already done).
+- Rotate secrets if they were committed.
 # Polymarket Copy Trading Telegram Bot
 
 ## Overview
