@@ -2,40 +2,83 @@
 
 This repository runs a Telegram bot which watches Polymarket activity and copies trades for subscribers.
 
-Deployment checklist
-- Use Python 3.12 (recommended).
-- Provide secrets via environment variables (do not commit `.env`): `TELEGRAM_TOKEN`, `DUNE_API_KEY`, `DATABASE_URL`, and optional `PORT`.
-- Prefer a managed PostgreSQL for production; set `DATABASE_URL` accordingly.
-- Rotate the Telegram token if it was ever committed to the repo.
+## Requirements
 
-Quick local run (development)
+- Python 3.12 (required for compatibility with python-telegram-bot)
+- PostgreSQL (recommended for production) or SQLite (local development)
+- Docker and docker-compose (for containerized deployment)
+
+## Environment Variables
+
+Copy `.env.example` to `.env` and fill in:
+
+- `TELEGRAM_TOKEN`: Your Telegram bot token
+- `DUNE_API_KEY`: Your Dune Analytics API key
+- `DATABASE_URL`: Database connection string (default: SQLite)
+- `PORT`: Health check server port (default: 8000)
+
+## Local Development
+
+1. Create a Python 3.12 virtual environment:
+   ```bash
+   python3.12 -m venv .venv-3.12
+   source .venv-3.12/bin/activate
+   pip install -r requirements.txt
+   ```
+
+2. Copy and configure environment:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your values
+   ```
+
+3. Run the bot:
+   ```bash
+   python main.py
+   ```
+
+## Docker Deployment
+
+Using docker-compose (recommended):
 
 ```bash
-python3.12 -m venv .venv-3.12
-source .venv-3.12/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-# fill values in .env
-python main.py
+# Start bot with PostgreSQL
+docker-compose up -d
+
+# View logs
+docker-compose logs -f bot
+
+# Stop services
+docker-compose down
 ```
 
-Docker
-
-Build and run container:
+Using Docker directly:
 
 ```bash
 docker build -t polyct .
-docker run -e TELEGRAM_TOKEN="$TELEGRAM_TOKEN" -e DUNE_API_KEY="$DUNE_API_KEY" -p 8000:8000 polyct
+docker run -d \
+  -e TELEGRAM_TOKEN="your_token" \
+  -e DUNE_API_KEY="your_key" \
+  -e DATABASE_URL="postgresql+asyncpg://user:pass@host:5432/dbname" \
+  -p 8000:8000 \
+  --name polyct \
+  polyct
 ```
 
-Health check
+## Health Checks
 
-The container exposes `/health` on port 8000 which returns 200 when running.
+The service exposes a health endpoint at `http://localhost:8000/health` which returns:
+- 200 OK when the bot is running
+- Connection details and status
 
-Security
+## Production Deployment Notes
 
-- Ensure `.env` is in `.gitignore` (already done).
-- Rotate secrets if they were committed.
+1. Use PostgreSQL instead of SQLite
+2. Set up proper monitoring and logging
+3. Use container orchestration (Kubernetes, ECS, etc.)
+4. Rotate any committed secrets
+5. Configure proper network security
+6. Set up automated backups for the database
 # Polymarket Copy Trading Telegram Bot
 
 ## Overview

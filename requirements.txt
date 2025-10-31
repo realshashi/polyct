@@ -1,8 +1,10 @@
 python-telegram-bot==20.7
-httpx
-py-clob-client
-SQLAlchemy[asyncio]
-aiosqlite
-cryptography
-python-dotenv
-aiohttp
+httpx==0.25.2
+py-clob-client==0.28.0
+SQLAlchemy[asyncio]==2.0.44
+aiosqlite==0.21.0
+cryptography==46.0.3
+python-dotenv==1.0.0
+aiohttp==3.9.0
+psycopg2-binary==2.9.9
+asyncpg==0.29.0

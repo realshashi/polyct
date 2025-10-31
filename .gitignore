@@ -79,6 +79,7 @@ Thumbs.db
 # Local virtualenv patterns (catch numbered/variant names)
 .venv*
 .venv-*
+.venv-3.12
 
 # Python cache / tooling
 .mypy_cache/
