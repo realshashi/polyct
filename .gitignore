@@ -74,3 +74,18 @@ htmlcov/
 # OS
 Thumbs.db
 
+
+
+# Local virtualenv patterns (catch numbered/variant names)
+.venv*
+.venv-*
+
+# Python cache / tooling
+.mypy_cache/
+pip-wheel-metadata/
+*.sqlite-journal
+
+# Editor temporary files
+.idea/
+.vscode/
+
