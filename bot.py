@@ -1,8 +1,9 @@
 import logging
 from telegram import Update
 from telegram.ext import (
-    Application, CommandHandler, ConversationHandler, MessageHandler, filters, ContextTypes
+    Application, CommandHandler, ConversationHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 )
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 import asyncio
 from database import AsyncSessionLocal, User, UserKeys, SourceTrader, Subscription, TradeLog, init_db
 from security import encrypt_data
@@ -14,7 +15,39 @@ import re
 ADD_KEY, ADD_SECRET, ADD_PASS = range(3)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("Welcome to Polymarket Copy Trading Bot! Use /help to see commands.")
+    keyboard = [
+        [InlineKeyboardButton("Add Keys", callback_data='add_keys_start'),
+         InlineKeyboardButton("List Subs", callback_data='list_subs')],
+        [InlineKeyboardButton("Status", callback_data='status_check'),
+         InlineKeyboardButton("Help", callback_data='help_info')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Welcome to Polymarket Copy Trading Bot! Choose an action:", reply_markup=reply_markup)
+
+async def menu_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    keyboard = [
+        [InlineKeyboardButton("Add Keys", callback_data='add_keys_start'),
+         InlineKeyboardButton("List Subs", callback_data='list_subs')],
+        [InlineKeyboardButton("Status", callback_data='status_check'),
+         InlineKeyboardButton("Help", callback_data='help_info')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    if update.message:
+        await update.message.reply_text("Main Menu:", reply_markup=reply_markup)
+    elif update.callback_query:
+        await update.callback_query.message.reply_text("Main Menu:", reply_markup=reply_markup)
+
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    if query.data == 'add_keys_start':
+        await query.message.reply_text("To add keys, please type /add_keys")
+    elif query.data == 'list_subs':
+        await list_subscriptions(update, context)
+    elif query.data == 'status_check':
+        await status_cmd(update, context)
+    elif query.data == 'help_info':
+        await help_cmd(update, context)
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("""
@@ -31,7 +64,7 @@ Commands:
 /config_top_pnl <new_amount> — Change allocation on the top PNL trader
 /status — Recent copy-trade status and history
 
-⚠️ WARNING: Copy trading involves significant financial risk. Only use with funds you can afford to lose.
+WARNING: Copy trading involves significant financial risk. Only use with funds you can afford to lose.
 """)
 
 async def add_keys_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -80,11 +113,11 @@ async def add_keys_pass(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await session.commit()
         except SQLAlchemyError as e:
             logging.error(f"/add_keys DB error: {e}")
-            await update.message.reply_text("⚠️ Failed to save keys. Please try again later.")
+            await update.message.reply_text("Failed to save keys. Please try again later.")
             return ConversationHandler.END
 
     await update.message.reply_text(
-        "✅ Keys Saved! Your keys have been securely encrypted. For safety, this chat will be deleted.")
+        "Keys Saved! Your keys have been securely encrypted. For safety, this chat will be deleted.")
     return ConversationHandler.END
 
 async def add_keys_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -112,7 +145,7 @@ async def remove_keys(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         await session.delete(q)
         await session.commit()
-        await update.message.reply_text("🗑️ Keys Removed. Your API keys have been permanently deleted.")
+        await update.message.reply_text("Keys Removed. Your API keys have been permanently deleted.")
 
 def is_valid_wallet(address: str) -> bool:
     """Basic Ethereum address validation."""
@@ -129,10 +162,10 @@ async def copy_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if amount <= 0:
             raise ValueError("Amount must be positive")
     except ValueError:
-        await update.message.reply_text("❌ Invalid amount. Please provide a positive number.")
+        await update.message.reply_text("Invalid amount. Please provide a positive number.")
         return
     if not is_valid_wallet(wallet_addr):
-        await update.message.reply_text("❌ Invalid wallet address format. Must be a valid Ethereum address (0x...).")
+        await update.message.reply_text("Invalid wallet address format. Must be a valid Ethereum address (0x...).")
         return
     async with AsyncSessionLocal() as session:
         try:
@@ -169,10 +202,10 @@ async def copy_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 session.add(sub)
             await session.commit()
             short_addr = f"{wallet_addr[:6]}...{wallet_addr[-4:]}" if len(wallet_addr) > 10 else wallet_addr
-            await update.message.reply_text(f"✅ Now Copying Wallet!\nYou are now copying trades from {short_addr} with ${amount:.2f} per trade.")
+            await update.message.reply_text(f"Now Copying Wallet!\nYou are now copying trades from {short_addr} with ${amount:.2f} per trade.")
         except SQLAlchemyError as e:
             logging.error(f"/copy_wallet DB error: {e}")
-            await update.message.reply_text("⚠️ Failed to set up wallet copying. Please try again later.")
+            await update.message.reply_text("Failed to set up wallet copying. Please try again later.")
 
 async def copy_top_pnl(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -184,7 +217,7 @@ async def copy_top_pnl(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if amount <= 0:
             raise ValueError("Amount must be positive")
     except ValueError:
-        await update.message.reply_text("❌ Invalid amount. Please provide a positive number.")
+        await update.message.reply_text("Invalid amount. Please provide a positive number.")
         return
     async with AsyncSessionLocal() as session:
         try:
@@ -211,10 +244,10 @@ async def copy_top_pnl(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
                 session.add(sub)
             await session.commit()
-            await update.message.reply_text(f"✅ Now Copying Top PNL!\nYou are now copying the #1 PNL trader with ${amount:.2f} per trade. This will update automatically.")
+            await update.message.reply_text(f"Now Copying Top PNL!\nYou are now copying the #1 PNL trader with ${amount:.2f} per trade. This will update automatically.")
         except SQLAlchemyError as e:
             logging.error(f"/copy_top_pnl DB error: {e}")
-            await update.message.reply_text("⚠️ Failed to set up top PNL copying. Please try again later.")
+            await update.message.reply_text("Failed to set up top PNL copying. Please try again later.")
 
 async def stop_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -223,14 +256,14 @@ async def stop_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     wallet_addr = context.args[0].strip()
     if not is_valid_wallet(wallet_addr):
-        await update.message.reply_text("❌ Invalid wallet address format.")
+        await update.message.reply_text("Invalid wallet address format.")
         return
     async with AsyncSessionLocal() as session:
         try:
             result = await session.execute(select(SourceTrader).where(SourceTrader.wallet_address == wallet_addr))
             trader = result.scalar_one_or_none()
             if not trader:
-                await update.message.reply_text("❌ Wallet not found in tracked wallets.")
+                await update.message.reply_text("Wallet not found in tracked wallets.")
                 return
             sub_result = await session.execute(select(Subscription).where(
                 Subscription.user_id == user_id,
@@ -238,15 +271,15 @@ async def stop_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ))
             sub = sub_result.scalar_one_or_none()
             if not sub or not sub.active:
-                await update.message.reply_text("❌ You are not currently copying this wallet.")
+                await update.message.reply_text("You are not currently copying this wallet.")
                 return
             sub.active = False
             await session.commit()
             short_addr = f"{wallet_addr[:6]}...{wallet_addr[-4:]}" if len(wallet_addr) > 10 else wallet_addr
-            await update.message.reply_text(f"🛑 Stopped. You are no longer copying trades from {short_addr}.")
+            await update.message.reply_text(f"Stopped. You are no longer copying trades from {short_addr}.")
         except SQLAlchemyError as e:
             logging.error(f"/stop_wallet DB error: {e}")
-            await update.message.reply_text("⚠️ Failed to stop wallet copying. Please try again later.")
+            await update.message.reply_text("Failed to stop wallet copying. Please try again later.")
 
 async def stop_top_pnl(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -258,14 +291,14 @@ async def stop_top_pnl(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ))
             sub = result.scalar_one_or_none()
             if not sub or not sub.active:
-                await update.message.reply_text("❌ You are not currently copying the Top PNL trader.")
+                await update.message.reply_text("You are not currently copying the Top PNL trader.")
                 return
             sub.active = False
             await session.commit()
-            await update.message.reply_text("🛑 Stopped. You are no longer copying the Top PNL trader.")
+            await update.message.reply_text("Stopped. You are no longer copying the Top PNL trader.")
         except SQLAlchemyError as e:
             logging.error(f"/stop_top_pnl DB error: {e}")
-            await update.message.reply_text("⚠️ Failed to stop top PNL copying. Please try again later.")
+            await update.message.reply_text("Failed to stop top PNL copying. Please try again later.")
 
 async def list_subscriptions(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -298,7 +331,7 @@ async def list_subscriptions(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await update.message.reply_text(msg)
         except SQLAlchemyError as e:
             logging.error(f"/list DB error: {e}")
-            await update.message.reply_text("⚠️ Failed to retrieve subscriptions. Please try again later.")
+            await update.message.reply_text("Failed to retrieve subscriptions. Please try again later.")
 
 async def config_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -311,17 +344,17 @@ async def config_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if new_amount <= 0:
             raise ValueError("Amount must be positive")
     except ValueError:
-        await update.message.reply_text("❌ Invalid amount. Please provide a positive number.")
+        await update.message.reply_text("Invalid amount. Please provide a positive number.")
         return
     if not is_valid_wallet(wallet_addr):
-        await update.message.reply_text("❌ Invalid wallet address format.")
+        await update.message.reply_text("Invalid wallet address format.")
         return
     async with AsyncSessionLocal() as session:
         try:
             result = await session.execute(select(SourceTrader).where(SourceTrader.wallet_address == wallet_addr))
             trader = result.scalar_one_or_none()
             if not trader:
-                await update.message.reply_text("❌ Wallet not found.")
+                await update.message.reply_text("Wallet not found.")
                 return
             sub_result = await session.execute(select(Subscription).where(
                 Subscription.user_id == user_id,
@@ -329,15 +362,15 @@ async def config_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ))
             sub = sub_result.scalar_one_or_none()
             if not sub:
-                await update.message.reply_text("❌ You are not subscribed to this wallet.")
+                await update.message.reply_text("You are not subscribed to this wallet.")
                 return
             sub.trade_amount_usdc = new_amount
             await session.commit()
             short_addr = f"{wallet_addr[:6]}...{wallet_addr[-4:]}" if len(wallet_addr) > 10 else wallet_addr
-            await update.message.reply_text(f"✅ Amount Updated! New trade amount for {short_addr} is ${new_amount:.2f}.")
+            await update.message.reply_text(f"Amount Updated! New trade amount for {short_addr} is ${new_amount:.2f}.")
         except SQLAlchemyError as e:
             logging.error(f"/config_wallet DB error: {e}")
-            await update.message.reply_text("⚠️ Failed to update amount. Please try again later.")
+            await update.message.reply_text("Failed to update amount. Please try again later.")
 
 async def config_top_pnl(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -349,7 +382,7 @@ async def config_top_pnl(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if new_amount <= 0:
             raise ValueError("Amount must be positive")
     except ValueError:
-        await update.message.reply_text("❌ Invalid amount. Please provide a positive number.")
+        await update.message.reply_text("Invalid amount. Please provide a positive number.")
         return
     async with AsyncSessionLocal() as session:
         try:
@@ -359,14 +392,14 @@ async def config_top_pnl(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ))
             sub = result.scalar_one_or_none()
             if not sub:
-                await update.message.reply_text("❌ You are not subscribed to the Top PNL trader.")
+                await update.message.reply_text("You are not subscribed to the Top PNL trader.")
                 return
             sub.trade_amount_usdc = new_amount
             await session.commit()
-            await update.message.reply_text(f"✅ Amount Updated! New trade amount for the Top #1 PNL Trader is ${new_amount:.2f}.")
+            await update.message.reply_text(f"Amount Updated! New trade amount for the Top #1 PNL Trader is ${new_amount:.2f}.")
         except SQLAlchemyError as e:
             logging.error(f"/config_top_pnl DB error: {e}")
-            await update.message.reply_text("⚠️ Failed to update amount. Please try again later.")
+            await update.message.reply_text("Failed to update amount. Please try again later.")
 
 async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -390,22 +423,28 @@ async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not trades:
                 await update.message.reply_text("No trade history yet. Trades will appear here once copying begins.")
                 return
-            msg = "Recent Trade Status:\n\n"
+            msg = "Recent Trade Status\n\n"
             for trade in trades:
-                status_emoji = "✅" if trade.copy_trade_status == "SUCCESS" else "❌" if trade.copy_trade_status == "FAILED" else "⏳"
-                msg += f"{status_emoji} {trade.source_side} - Market: {trade.source_market_id[:20]}...\n"
-                msg += f"   Status: {trade.copy_trade_status}\n"
+                status_text = "SUCCESS" if trade.copy_trade_status == "SUCCESS" else "FAILED" if trade.copy_trade_status == "FAILED" else "PENDING"
+                msg += f"Status: {status_text} | Side: {trade.source_side}\n"
+                msg += f"Market: {trade.source_market_id[:10]}...\n"
+                msg += f"Info: {trade.copy_trade_status}\n"
                 if trade.error_message:
-                    msg += f"   Error: {trade.error_message[:50]}...\n"
-                msg += "\n"
-            await update.message.reply_text(msg)
+                    msg += f"Error: {trade.error_message[:50]}...\n"
+                msg += "-------------------\n"
+            
+            if update.message:
+                await update.message.reply_text(msg, parse_mode='Markdown')
+            elif update.callback_query:
+                await update.callback_query.message.reply_text(msg, parse_mode='Markdown')
         except SQLAlchemyError as e:
             logging.error(f"/status DB error: {e}")
-            await update.message.reply_text("⚠️ Failed to retrieve status. Please try again later.")
+            await update.message.reply_text("Failed to retrieve status. Please try again later.")
 
 # Handlers for registration in main.py:
 HANDLERS = [
     CommandHandler("start", start),
+    CommandHandler("menu", menu_cmd),
     CommandHandler("help", help_cmd),
     add_keys_conv,
     CommandHandler("remove_keys", remove_keys),
@@ -417,4 +456,5 @@ HANDLERS = [
     CommandHandler("config_wallet", config_wallet),
     CommandHandler("config_top_pnl", config_top_pnl),
     CommandHandler("status", status_cmd),
+    CallbackQueryHandler(button_handler),
 ]

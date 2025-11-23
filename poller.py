@@ -42,7 +42,7 @@ async def update_leaderboard_cache():
 
 async def poll_trades(job_queue=None):
     # Arguments for test: if job_queue is None, just print jobs to console
-    POLL_INTERVAL = 15
+    POLL_INTERVAL = 5
     POLY_API = "https://data-api.polymarket.com/activity"
     seen_top_pnl_ts = None
     local_top_wallet = None

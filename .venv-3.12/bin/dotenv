@@ -1,4 +1,4 @@
-#!/home/sk/polyct-main/.venv-3.12/bin/python3.12
+#!/home/sk/yessir/polyct/.venv-3.12/bin/python3.12
 # -*- coding: utf-8 -*-
 import re
 import sys
